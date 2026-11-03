@@ -1,0 +1,69 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Grant Execute Permission for Gradlew (if present)
+        run: chmod +x gradlew || true
+
+      - name: Build Android APK (Debug)
+        run: gradle assembleDebug --stacktrace
+
+      - name: Rename APK Output
+        run: |
+          mkdir -p output_apk
+          cp app/build/outputs/apk/debug/app-debug.apk output_apk/RobotCompanion.apk
+          echo "APK successfully built: output_apk/RobotCompanion.apk"
+
+      - name: Upload APK as Workflow Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RobotCompanion-APK
+          path: output_apk/RobotCompanion.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Create GitHub Release (Auto)
+        uses: softprops/action-gh-release@v1
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Robot Companion v1.0.${{ github.run_number }}
+          body: |
+            ## Robot Companion Android APK (Pure Neon Blue)
+            - **Desain**: 100% Monokrom Biru Neon (Electric Cyan `#00F0FF`)
+            - **Ikon**: Vektor Garis Kustom (Zero Emoji Berwarna)
+            - **Navigasi**: Sistem Multi-Halaman Penuh (Non-Scrollable)
+            - **Konektivitas**: Native Bluetooth Low Energy (BLE) Direct Chip-to-Chip
+            
+            ### Cara Install:
+            1. Download file `RobotCompanion.apk` di bawah.
+            2. Buka di HP Android Anda dan klik **Install**.
+          files: output_apk/RobotCompanion.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
